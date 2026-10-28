@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Example Renovate configuration that invokes code-graft to automatically migrate breaking API call sites and generate Impact Analysis DataTables whenever major SDK or framework dependencies are upgraded.",
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "github.com/acme/sdk-go",
+        "@acme/sdk-v1",
+        "acme-sdk",
+        "spring-boot-starter-parent"
+      ],
+      "matchUpdateTypes": ["major"],
+      "postUpgradeTasks": {
+        "commands": [
+          "code-graft --renovate-upgrade '{{{depName}}}@{{{newVersion}}}' --catalog-dir configs/examples --write",
+          "code-graft --renovate-upgrade '{{{depName}}}@{{{newVersion}}}' --catalog-dir configs/examples --audit --markdown > .renovate-impact.md"
+        ],
+        "fileFilters": ["**/*"],
+        "executionMode": "branch"
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+name: "template-rename-sdk-method-{{OLD_METHOD}}-to-{{NEW_METHOD}}"
+version: "1.0.0"
+category: "reusable-template"
+author: "platform-engineering"
+description: >
+  Parameterized reusable recipe template that rewrites calls to $CLIENT.{{OLD_METHOD}}(...)
+  into $CLIENT.{{NEW_METHOD}}(...) for a target package and optionally migrates imports.
+
+parameters:
+  LANG:
+    description: "Target programming language (go, typescript, python, java, rust, ruby)"
+    required: false
+    default: "go"
+  TARGET_PKG:
+    description: "Canonical package or module path that $CLIENT originates from"
+    required: true
+  OLD_METHOD:
+    description: "Deprecated method name to match"
+    required: true
+  NEW_METHOD:
+    description: "Replacement method name"
+    required: true
+  NEW_PKG:
+    description: "Updated package/module path to import"
+    required: true
+  IMPORT_ALIAS:
+    description: "Optional import alias or symbol"
+    required: false
+    default: ""
+
+rules:
+  - id: "rename-method-{{OLD_METHOD}}-to-{{NEW_METHOD}}"
+    language: "{{LANG}}"
+    match: "$CLIENT.{{OLD_METHOD}}($...ARGS)"
+    replace: "$CLIENT.{{NEW_METHOD}}($...ARGS)"
+    targetVar: "CLIENT"
+    fromPackage: "{{TARGET_PKG}}"
+    addImports:
+      - module: "{{NEW_PKG}}"
+        symbol: "{{IMPORT_ALIAS}}"
+    removeImports:
+      - "{{TARGET_PKG}}"

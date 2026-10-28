@@ -1,0 +1,169 @@
+name: "acme-sdk-v1-to-v2-migration"
+version: "2.3.0"
+category: "sdk-upgrade"
+author: "sdk-team"
+description: >
+  Migrates Acme SDK v1 client constructors, method calls, imports, and dependency
+  manifests (go.mod, package.json, requirements.txt) to Acme SDK v2 across Go,
+  TypeScript, and Python while ignoring unrelated packages with similar method names.
+
+rules:
+  # ---------------------------------------------------------------------------
+  # Go Migration Rules
+  # ---------------------------------------------------------------------------
+  - id: "go-upgrade-client-constructor"
+    language: "go"
+    match: "acmesdk.NewClient($TOKEN)"
+    replace: "acmesdk.NewV2Client($TOKEN)"
+    fromPackage: "github.com/acme/sdk-go"
+    addImports:
+      - module: "github.com/acme/sdk-go/v2"
+        symbol: "acmesdk"
+    removeImports:
+      - "github.com/acme/sdk-go"
+
+  - id: "go-upgrade-get-user"
+    language: "go"
+    match: "$CLIENT.GetUser($CTX, $ID)"
+    replace: "$CLIENT.FetchUser($CTX, $ID, nil)"
+    targetVar: "CLIENT"
+    fromPackage: "github.com/acme/sdk-go"
+    dataTable:
+      name: "deprecated_sdk_calls"
+      columns:
+        ecosystem: "go"
+        clientVar: "$CLIENT"
+        method: "GetUser"
+        argId: "$ID"
+
+  # ---------------------------------------------------------------------------
+  # TypeScript Migration Rules
+  # ---------------------------------------------------------------------------
+  - id: "ts-upgrade-client-constructor"
+    language: "typescript"
+    match: "new AcmeClient($TOKEN)"
+    replace: "new AcmeV2Client({ token: $TOKEN })"
+    fromPackage: "@acme/sdk-v1"
+    addImports:
+      - module: "@acme/sdk-v2"
+        symbol: "AcmeV2Client"
+    removeImports:
+      - "@acme/sdk-v1"
+
+  - id: "ts-upgrade-request-variadic"
+    language: "typescript"
+    match: "$CLIENT.request($ENDPOINT, $...OPTS)"
+    replace: "$CLIENT.v2Request({ path: $ENDPOINT }, $...OPTS)"
+    targetVar: "CLIENT"
+    fromPackage: "@acme/sdk-v1"
+    dataTable:
+      name: "deprecated_sdk_calls"
+      columns:
+        ecosystem: "typescript"
+        clientVar: "$CLIENT"
+        method: "request"
+        endpoint: "$ENDPOINT"
+
+  # ---------------------------------------------------------------------------
+  # Python Migration Rules
+  # ---------------------------------------------------------------------------
+  - id: "py-upgrade-client-constructor"
+    language: "python"
+    match: "AcmeClient($TOKEN)"
+    replace: "AcmeV2Client(api_token=$TOKEN)"
+    fromPackage: "acme_sdk"
+    addImports:
+      - module: "acme_sdk_v2"
+        symbol: "AcmeV2Client"
+    removeImports:
+      - "acme_sdk"
+
+  - id: "py-upgrade-fetch-item"
+    language: "python"
+    match: "$CLIENT.get_item($ITEM_ID)"
+    replace: "$CLIENT.fetch_item_v2(item_id=$ITEM_ID)"
+    targetVar: "CLIENT"
+    fromPackage: "acme_sdk"
+
+  # ---------------------------------------------------------------------------
+  # Java Migration Rules
+  # ---------------------------------------------------------------------------
+  - id: "java-upgrade-get-user"
+    language: "java"
+    match: "$CLIENT.getUser($ID)"
+    replace: "$CLIENT.fetchUserV2($ID)"
+    targetVar: "CLIENT"
+    fromPackage: "com.acme.sdk"
+    addImports:
+      - module: "com.acme.sdk.v2"
+        symbol: "AcmeV2Client"
+    removeImports:
+      - "com.acme.sdk.AcmeClient"
+
+  # ---------------------------------------------------------------------------
+  # Rust Migration Rules
+  # ---------------------------------------------------------------------------
+  - id: "rust-upgrade-get-user"
+    language: "rust"
+    match: "$CLIENT.get_user($ID)"
+    replace: "$CLIENT.fetch_user_v2($ID)"
+    targetVar: "CLIENT"
+    fromPackage: "acme_sdk"
+    addImports:
+      - module: "acme_sdk_v2"
+        symbol: "Client"
+    removeImports:
+      - "acme_sdk"
+
+  # ---------------------------------------------------------------------------
+  # Ruby Migration Rules
+  # ---------------------------------------------------------------------------
+  - id: "ruby-upgrade-get-user"
+    language: "ruby"
+    match: "$CLIENT.get_user($ID)"
+    replace: "$CLIENT.fetch_user_v2($ID)"
+    targetVar: "CLIENT"
+    fromPackage: "acme_sdk"
+    addImports:
+      - module: "acme_sdk_v2"
+    removeImports:
+      - "acme_sdk"
+
+  # ---------------------------------------------------------------------------
+  # C & C++ Migration Rules
+  # ---------------------------------------------------------------------------
+  - id: "c-upgrade-init"
+    language: "c"
+    match: "acme_init($FLAGS)"
+    replace: "acme_init_v2($FLAGS, NULL)"
+    fromPackage: "acme_v1.h"
+    addImports:
+      - module: "acme_v2.h"
+    removeImports:
+      - "acme_v1.h"
+
+  - id: "cpp-upgrade-connect"
+    language: "cpp"
+    match: "acme::connect($HOST, $PORT)"
+    replace: "acme::v2::connect($HOST, $PORT)"
+    fromPackage: "acme/v1.hpp"
+    addImports:
+      - module: "<acme/v2.hpp>"
+    removeImports:
+      - "acme/v1.hpp"
+
+manifests:
+  - ecosystem: "go"
+    oldPackage: "github.com/acme/sdk-go"
+    newPackage: "github.com/acme/sdk-go/v2"
+    newVersion: "v2.3.0"
+
+  - ecosystem: "typescript"
+    oldPackage: "@acme/sdk-v1"
+    newPackage: "@acme/sdk-v2"
+    newVersion: "^2.3.0"
+
+  - ecosystem: "python"
+    oldPackage: "acme-sdk"
+    newPackage: "acme-sdk-v2"
+    newVersion: ">=2.3.0"

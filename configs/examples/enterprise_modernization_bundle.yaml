@@ -1,0 +1,14 @@
+name: "enterprise-2026-modernization-bundle"
+version: "2026.1.0"
+category: "enterprise-playbook"
+author: "architecture-guild"
+tags:
+  - "polyglot"
+  - "spring-boot-3"
+  - "acme-sdk-v2"
+description: >
+  Composite enterprise migration playbook that includes both the Acme SDK v1->v2
+  polyglot migration and the Spring Boot 2->3 upgrade recipe.
+includes:
+  - "./acme_sdk_v2.yaml"
+  - "./spring_boot_2_to_3.yaml"

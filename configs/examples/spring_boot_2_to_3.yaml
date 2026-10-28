@@ -1,0 +1,131 @@
+name: "spring-boot-2-to-3-migration"
+version: "3.0.0"
+category: "framework-migration"
+author: "platform-engineering"
+tags:
+  - "java"
+  - "spring-boot"
+  - "jakarta"
+description: >
+  Upgrades a Spring Boot 2.x application to Spring Boot 3.x (inspired by OpenRewrite's
+  UpgradeSpringBoot_3_0 recipe), including javax.* to jakarta.* JEE9 namespace migration,
+  Spring MVC @RequestMapping to @GetMapping/@PostMapping modernization, Spring Web
+  HttpStatus.value() migration, and Maven pom.xml spring-boot-starter-parent upgrade.
+preconditions:
+  excludeFiles:
+    - "**/generated/**"
+
+rules:
+  # ---------------------------------------------------------------------------
+  # 1. JEE 9 / Jakarta EE Namespace Migration (javax.* -> jakarta.*)
+  # ---------------------------------------------------------------------------
+  - id: "java-javax-to-jakarta-imports"
+    language: "java"
+    kind: "import_declaration"
+    regex: "^import\\s+javax\\.(persistence|validation|servlet|annotation|transaction)\\."
+    transforms:
+      "0":
+        regex: "import\\s+javax\\."
+        replace: "import jakarta."
+    replace: "$0"
+
+  # ---------------------------------------------------------------------------
+  # 2. Spring Web MVC: @RequestMapping(value = $PATH, method = RequestMethod.GET) -> @GetMapping($PATH)
+  # ---------------------------------------------------------------------------
+  - id: "spring-mvc-request-mapping-get"
+    language: "java"
+    match: "@RequestMapping(value = $PATH, method = RequestMethod.GET)"
+    replace: "@GetMapping($PATH)"
+    addImports:
+      - module: "org.springframework.web.bind.annotation"
+        symbol: "GetMapping"
+
+  - id: "spring-mvc-request-mapping-post"
+    language: "java"
+    match: "@RequestMapping(value = $PATH, method = RequestMethod.POST)"
+    replace: "@PostMapping($PATH)"
+    addImports:
+      - module: "org.springframework.web.bind.annotation"
+        symbol: "PostMapping"
+
+  # ---------------------------------------------------------------------------
+  # 3. Spring Web 6 / Boot 3: response.getStatusCodeValue() -> response.getStatusCode().value()
+  # ---------------------------------------------------------------------------
+  - id: "spring-web-response-entity-status-code-value"
+    language: "java"
+    match: "$RESP.getStatusCodeValue()"
+    replace: "$RESP.getStatusCode().value()"
+    inside:
+      kind: "method_declaration"
+
+  # ---------------------------------------------------------------------------
+  # 4. Spring Data JPA: CrudRepository.findOne($ID) -> findById($ID).orElse(null)
+  # ---------------------------------------------------------------------------
+  - id: "spring-data-find-one-to-find-by-id"
+    language: "java"
+    match: "$REPO.findOne($ID)"
+    replace: "$REPO.findById($ID).orElse(null)"
+    where:
+      REPO: ".*(Repo|Repository)$"
+
+  # ---------------------------------------------------------------------------
+  # 5. Spring Boot 3 Config & Infrastructure Rules (YAML, Properties, Dockerfile)
+  # ---------------------------------------------------------------------------
+  - id: "spring-yaml-max-http-header-size"
+    language: "yaml"
+    match: "server.max-http-header-size: $SIZE"
+    replace: "server.max-http-request-header-size: $SIZE"
+
+  - id: "spring-props-redis-host-migration"
+    language: "properties"
+    match: "spring.redis.host = $HOST"
+    replace: "spring.data.redis.host = $HOST"
+
+  - id: "dockerfile-eclipse-temurin-17-to-21"
+    language: "dockerfile"
+    match: "FROM eclipse-temurin:17-$FLAVOR"
+    replace: "FROM eclipse-temurin:21-$FLAVOR"
+
+manifests:
+  - ecosystem: "java"
+    oldPackage: "spring-boot-starter-parent"
+    newPackage: "spring-boot-starter-parent"
+    newVersion: "3.3.4"
+
+tests:
+  - name: "migrates javax.persistence and @RequestMapping GET to jakarta and @GetMapping"
+    path: "UserController.java"
+    input: |
+      package com.acme;
+
+      import javax.persistence.Entity;
+
+      @Entity
+      public class UserController {
+          @RequestMapping(value = "/users", method = RequestMethod.GET)
+          public String list() {
+              return "ok";
+          }
+      }
+    expected: |
+      package com.acme;
+
+      import jakarta.persistence.Entity;
+      import org.springframework.web.bind.annotation.GetMapping;
+
+      @Entity
+      public class UserController {
+          @GetMapping("/users")
+          public String list() {
+              return "ok";
+          }
+      }
+  - name: "skips files in excluded generated directory"
+    path: "target/generated/GenController.java"
+    input: |
+      package com.acme;
+      import javax.persistence.Entity;
+    expected: |
+      package com.acme;
+      import javax.persistence.Entity;
+
